@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id), clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a)); return t * t * (3 - 2 * t) }, mix = (a, b, t) => a + (b - a) * t;
   const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d', { alpha: false }); $('scene').appendChild(canvas);
-  let W = 1, H = 1, DPR = 1, state = 'loading', time = 0, visual = 0, crashTime = 0, paused = false, multiplier = 1, speed = 0, altitude = 0, lastPhase = '', lastNow = performance.now(), lastHUD = 0;
+  let W = 1, H = 1, DPR = 1, state = 'loading', time = 0, visual = 0, crashTime = 0, paused = false, multiplier = 1, speed = 0, altitude = 0, lastPhase = '', lastNow = performance.now(), lastHUD = 0, roadScroll = 0;
   const DURATION = 28, assets = {}, particles = []; let currentJet = { x: 0, y: 0, w: 0, h: 0, angle: 0 }, impact = { x: 0, y: 0 };
   function resize() { W = $('scene').clientWidth || innerWidth; H = $('scene').clientHeight || innerHeight; DPR = Math.min(devicePixelRatio || 1, 2); canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR); canvas.style.width = W + 'px'; canvas.style.height = H + 'px'; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
   new ResizeObserver(resize).observe($('scene')); addEventListener('resize', resize); resize();
@@ -13,58 +13,40 @@
   function setPhase(name) { if (name === lastPhase) return; lastPhase = name; const p = phases[name]; $('phase-code').textContent = p[0]; $('phase-title').textContent = p[1]; $('phase-description').textContent = p[2]; document.querySelectorAll('[data-phase]').forEach(e => e.classList.toggle('active', e.dataset.phase === name)); document.body.dataset.phase = name; }
   function toast(text) { $('toast').textContent = text; $('toast').classList.add('visible'); clearTimeout(toast.timer); toast.timer = setTimeout(() => $('toast').classList.remove('visible'), 2200); }
   function hud() { $('speed').textContent = Math.round(speed).toString().padStart(3, '0'); $('altitude').textContent = Math.round(altitude).toString().padStart(3, '0'); $('elapsed').textContent = time.toFixed(1).padStart(4, '0'); $('multiplier').textContent = multiplier.toFixed(2); $('progress-fill').style.width = clamp(time / DURATION) * 100 + '%'; $('status-text').textContent = state === 'idle' ? '准备就绪 · 等待你的起飞指令' : state === 'crash' ? '信号中断 · 可重新起飞' : paused ? '飞行已暂停' : time < 7 ? '全油门加速 · 正在抵达起飞速度' : '持续爬升 · 穿越云层'; }
-  function start() { if (state === 'loading') return; state = 'flight'; time = 0; crashTime = 0; multiplier = 1; speed = 0; altitude = 0; paused = false; particles.length = 0; $('end-panel').hidden = true; $('end-panel').classList.add('hidden'); $('launch-btn').innerHTML = '<span>重新起飞</span><span aria-hidden="true">↗</span>'; $('pause-btn').disabled = false; $('pause-btn').classList.remove('paused'); $('pause-btn').setAttribute('aria-pressed', 'false'); $('pause-btn').setAttribute('aria-label', '暂停动画'); $('crash-btn').disabled = false; document.body.classList.remove('has-crashed'); setPhase('roll'); hud(); audioStart(); }
+  function start() { if (state === 'loading') return; state = 'flight'; time = 0; crashTime = 0; multiplier = 1; speed = 0; altitude = 0; paused = false; particles.length = 0; roadScroll = 0; $('end-panel').hidden = true; $('end-panel').classList.add('hidden'); $('launch-btn').innerHTML = '<span>重新起飞</span><span aria-hidden="true">↗</span>'; $('pause-btn').disabled = false; $('pause-btn').classList.remove('paused'); $('pause-btn').setAttribute('aria-pressed', 'false'); $('pause-btn').setAttribute('aria-label', '暂停动画'); $('crash-btn').disabled = false; document.body.classList.remove('has-crashed'); setPhase('roll'); hud(); audioStart(); }
   function crash() { if (state !== 'flight') return; state = 'crash'; paused = false; crashTime = 0; impact = { x: currentJet.x, y: currentJet.y }; for (let i = 0; i < 95; i++)particles.push({ x: impact.x, y: impact.y, vx: (Math.random() - .55) * W * .4, vy: (Math.random() - .55) * H * .45, r: Math.random() * 2.5 + 1, life: .7 + Math.random() * 2.5 }); $('pause-btn').disabled = true; $('crash-btn').disabled = true; setPhase('crash'); document.body.classList.add('has-crashed'); boom(); hud(); }
   function pause() { if (state !== 'flight') return; paused = !paused; $('pause-btn').classList.toggle('paused', paused); $('pause-btn').setAttribute('aria-pressed', String(paused)); $('pause-btn').setAttribute('aria-label', paused ? '继续动画' : '暂停动画'); hud(); }
-  function cover(img, panX = 0, panY = 0, zoom = 1) { const scale = Math.max(W / img.width, H / img.height) * zoom, w = img.width * scale, h = img.height * scale; ctx.drawImage(img, (W - w) / 2 + panX, (H - h) / 2 + panY, w, h); }
-  function tiled(img, pan, y, scale) { const tw = img.width * scale, th = img.height * scale, start = Math.floor(pan / tw); for (let n = start - 1; n <= start + 2; n++) { const x = n * tw - pan; ctx.save(); ctx.translate(x + (Math.abs(n) % 2 ? tw : 0), y); if (Math.abs(n) % 2) ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, tw, th); ctx.restore(); } }
+  function road(img, pan, y, s, alpha) { const tw = img.width * s, th = img.height * s; let x = -(((pan % tw) + tw) % tw); ctx.globalAlpha = alpha; for (; x < W; x += tw) ctx.drawImage(img, x, y, tw + 1, th); ctx.globalAlpha = 1; }
   function background() {
-    const climb = smooth(7.5, 13, time), skyBlend = smooth(15, 24, time), airport = assets.airport;
-    ctx.fillStyle = '#7694a9'; ctx.fillRect(0, 0, W, H);
-    const skyRise = smooth(7.5, 20, time) * H * .18;
-    cover(assets.sky, -smooth(10, 28, time) * W * .055, H * .025 + skyRise, 1.15);
-    if (skyBlend < 1) {
-      ctx.save(); ctx.globalAlpha = 1 - skyBlend;
-      const scale = Math.max(W / airport.width, H / airport.height),
-            baseY = H * .81 - airport.height * .81 * scale,
-            rise = climb * H * .35;
-      // 位置连续 + 速度连续：左段 t=7 位置 6.958W、速度约 2.28W/s；
-      // 右段从 2.3W/s 起步并二次加速，7 秒处不再急刹
-      const scroll = time < 7
-        ? W * (time * time * 0.10 + time * time * time * 0.006)
-        : W * (49 * 0.10 + 343 * 0.006) + (time - 7) * W * 2.3 + (time - 7) * (time - 7) * W * 0.12;
-
-      // 远景：慢速视差
-      tiled(airport, scroll * .18, baseY + rise, scale);
-
-      const runY = baseY + airport.height * .667 * scale + rise;
-      ctx.save(); ctx.beginPath(); ctx.rect(0, runY, W, H); ctx.clip();
-
-      // 近景差速：速度越快，近景越“超前”
-      const nearScroll = scroll + (speed / 790) * W * 0.35;
-      tiled(airport, nearScroll, baseY + rise, scale * 1.15);
-
-      // 运动模糊重影
-      if (speed > 65 && time < 14) {
-        ctx.globalAlpha = (1 - skyBlend) * clamp(speed / 320) * .28;
-        tiled(airport, nearScroll + Math.min(60, speed * .12), baseY + rise, scale * 1.15);
-      }
-
-      // 离散飞掠：跑道灯/标线
-      if (speed > 40) {
-        const fly = clamp(speed / 790);
-        ctx.globalAlpha = (1 - skyBlend) * fly * .55;
-        ctx.fillStyle = '#fff';
-        for (let i = 0; i < 30; i++) {
-          const x = ((i * 97 + nearScroll * 2.2) % (W + 160)) - 80;
-          const y = runY + 20 + (i % 6) * (H * .06);
-          const len = 8 + fly * 26;
-          ctx.fillRect(x, y, len, 2);
+    const bd = assets.backdrop, rw = assets.runway;
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    // 天空、云层、远景、跑道共用同一缩放比例：同一个镜头，画面连续
+    const s = Math.max(W / bd.width, H / 941) * 1.2, bw = bd.width * s, bh = bd.height * s, th = rw.height * s, groundY = H - th;
+    // 镜头上升：地平线先下沉离开画面，随后继续爬升，穿过云层进入高空
+    const cam = (bh - groundY) * (.7 * smooth(6.5, 13, time) + .3 * smooth(13, 26, time)), ry = groundY + cam;
+    ctx.drawImage(bd, (W - bw) / 2, ry - bh, bw, bh);
+    if (ry < H) {
+      const fly = clamp(speed / 790);
+      road(rw, roadScroll, ry, s, 1);
+      // 运动拖影：叠在主跑道之上
+      if (speed > 50) for (let b = 1; b <= 3; b++) road(rw, roadScroll - b * (8 + speed * .06), ry, s, .16 * fly);
+      const g = ctx.createLinearGradient(0, ry + th * .55, 0, ry + th);
+      g.addColorStop(0, 'rgba(9,15,24,0)'); g.addColorStop(1, 'rgba(9,15,24,.32)');
+      ctx.fillStyle = g; ctx.fillRect(0, ry + th * .55, W, th * .45);
+      if (speed > 30) {
+        ctx.save(); ctx.beginPath(); ctx.rect(0, ry, W, th); ctx.clip(); ctx.globalCompositeOperation = 'screen';
+        const rows = 10;
+        for (let r = 0; r < rows; r++) {
+          const d = r / (rows - 1), yy = ry + d * th, k = .4 + d * 2.2, len = (14 + d * d * W * .5) * (.35 + fly * 1.4), spacing = W * (.5 + d * .9), off = (roadScroll * k) % spacing;
+          ctx.globalAlpha = (.06 + fly * .32) * (.2 + d * .8); ctx.fillStyle = d > .55 ? 'rgba(255,242,214,1)' : 'rgba(214,232,255,1)';
+          const h = 1 + d * 2.2; for (let x = -off - len; x < W + len; x += spacing) ctx.fillRect(x, yy - h / 2, len, h);
         }
+        ctx.restore();
       }
-      ctx.restore(); ctx.restore();
     }
-    const glow = ctx.createRadialGradient(W * .99, H * .14, 0, W * .99, H * .14, W * .45); glow.addColorStop(0, 'rgba(255,217,169,.14)'); glow.addColorStop(1, 'rgba(255,208,150,0)'); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+    const glow = ctx.createRadialGradient(W * .99, H * .14, 0, W * .99, H * .14, W * .45);
+    glow.addColorStop(0, 'rgba(255,217,169,.14)'); glow.addColorStop(1, 'rgba(255,208,150,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
   }
   function jetTransform() {
     const width = Math.min(W * (W / H < 1 ? .85 : .58), 1100) * (1 - smooth(16, 28, time) * .12),
@@ -103,11 +85,17 @@
   document.addEventListener('visibilitychange', () => { lastNow = performance.now(); if (document.hidden && audioCtx) audioCtx.suspend(); else if (audioCtx && soundEnabled) audioCtx.resume(); });
   function frame(now) {
     requestAnimationFrame(frame); const dt = Math.min((now - lastNow) / 1000, .06); lastNow = now; if (document.hidden || state === 'loading') return; if (!paused) visual += dt;
-    if (state === 'flight' && !paused) { time = Math.min(DURATION, time + dt); speed = time < 7 ? 315 * (time / 7) ** 0.75 : Math.min(790, 315 + (time - 7) * 27); altitude = 1.6 * Math.max(0, time - 7) ** 2; multiplier = Math.exp(Math.max(0, time - 1) * .102); setPhase(time < 6 ? 'roll' : time < 12 ? 'rotate' : 'climb'); if (time >= DURATION) crash(); }
+    if (state === 'flight' && !paused) { time = Math.min(DURATION, time + dt); speed = time < 7 ? 315 * (time / 7) ** 0.75 : Math.min(790, 315 + (time - 7) * 27); altitude = 1.6 * Math.max(0, time - 7) ** 2; multiplier = Math.exp(Math.max(0, time - 1) * .102); roadScroll += speed * dt * 2.6; setPhase(time < 6 ? 'roll' : time < 12 ? 'rotate' : 'climb'); if (time >= DURATION) crash(); }
     if (state === 'crash') { crashTime += dt; if (crashTime > 2.1 && $('end-panel').hidden) { $('end-panel').hidden = false; $('end-panel').classList.remove('hidden'); $('end-title').textContent = '飞行终止'; $('end-multiplier').textContent = multiplier.toFixed(2) + '×'; $('end-copy').textContent = `本轮飞行 ${time.toFixed(1)} 秒。再来一次，冲向更高处。`; } }
     ctx.save(); if (state === 'crash' && crashTime < .7) { const shake = (1 - crashTime / .7) * 6; ctx.translate(Math.sin(crashTime * 120) * shake, Math.cos(crashTime * 137) * shake); } background(); if (state !== 'crash') airplane(); else explosion(dt); ctx.restore(); audioUpdate(); if (now - lastHUD > 65) { lastHUD = now; hud(); }
   }
   $('launch-btn').disabled = true; $('pause-btn').disabled = true; $('crash-btn').disabled = true;
-  Promise.all([load('airport', 'assets/airport-photo.png'), load('sky', 'assets/sky-photo.png'), load('gear', 'assets/fighter-gear.png'), load('air', 'assets/fighter-air.png'), load('explosion', 'assets/explosion.png')]).then(() => { state = 'idle'; $('loading').classList.add('hidden'); $('launch-btn').disabled = false; setPhase('idle'); hud(); }).catch(e => { $('loading').textContent = '素材加载失败，请保留完整 assets 文件夹后重新打开。'; console.error('Asset load failed:', e.message); });
+  Promise.all([
+    load('backdrop', 'assets/backdrop.png'),
+    load('runway', 'assets/runway-tile.png'),
+    load('gear', 'assets/fighter-gear.png'),
+    load('air', 'assets/fighter-air.png'),
+    load('explosion', 'assets/explosion.png')
+  ]).then(() => { state = 'idle'; $('loading').classList.add('hidden'); $('launch-btn').disabled = false; setPhase('idle'); hud(); }).catch(e => { $('loading').textContent = '素材加载失败，请保留完整 assets 文件夹后重新打开。'; console.error('Asset load failed:', e.message); });
   window.afterburn = { get state() { return state }, get time() { return time }, get multiplier() { return multiplier }, get paused() { return paused }, start, crash }; requestAnimationFrame(frame);
 })();
