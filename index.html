@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090f18">
+  <meta name="description" content="AFTERBURN 超燃飞行 — 从机场跑道到云层之上，沉浸式战斗机 Crash Game 动画。">
+  <title>AFTERBURN · 超燃飞行</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <main class="experience">
+    <section class="stage" aria-label="战斗机起飞动画">
+      <div id="scene" role="img" aria-label="机场侧视角的写实战斗机起飞动画"></div>
+      <div class="scene-shade" aria-hidden="true"></div>
+      <header class="topbar interface">
+        <a class="brand" href="./index.html" aria-label="AFTERBURN 超燃飞行首页">
+          <svg class="brand-icon" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M19.8 2 33 31l-14.6-8.9L3 29.5 19.8 2Z" fill="currentColor"/><path d="m18.4 22.1 1.4-14.5-7.7 18.1 6.3-3.6Z" fill="#171C24"/><path d="m19 27.2 4.7 6.8-5.2-3.2-5.5 2.8 6-6.4Z" fill="currentColor"/></svg>
+          <span class="brand-name">AFTERBURN<span class="brand-caption">超燃飞行</span></span>
+        </a>
+        <span class="header-caption micro">CRASH FLIGHT EXPERIENCE</span>
+        <div class="header-actions">
+          <span class="live-mark micro"><i></i> REALTIME</span>
+          <span class="action-divider" aria-hidden="true"></span>
+          <button class="icon-btn" id="sound-btn" type="button" title="开启声音" aria-label="开启声音" aria-pressed="false">
+            <svg class="sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M11 4 5.5 8H2v8h3.5l5.5 4V4Z"/><path d="M15 8a6 6 0 0 1 0 8M18 4.5a10 10 0 0 1 0 15" stroke-linecap="round"/></svg>
+            <svg class="sound-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M11 4 5.5 8H2v8h3.5l5.5 4V4Z"/><path d="m17 9 5 6m0-6-5 6" stroke-linecap="round"/></svg>
+          </button>
+          <button class="icon-btn" id="fullscreen-btn" type="button" title="全屏" aria-label="进入全屏">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="phase-block interface">
+        <p id="phase-code" class="eyebrow micro"><span class="orange-dot"></span> 01 / RUNWAY 27</p>
+        <h1 id="phase-title">跑道就绪</h1>
+        <p id="phase-description">引擎待命。下一站，云层之上。</p>
+      </div>
+
+      <div class="multiplier-block interface">
+        <p class="micro multiplier-label">FLIGHT MULTIPLIER</p>
+        <div class="multiplier-value"><span id="multiplier">1.00</span><span class="times">×</span></div>
+        <span class="multiplier-caption"><span class="signal-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>每一秒，都是新的高度</span>
+      </div>
+
+      <div class="frame-corner corner-tl" aria-hidden="true"></div>
+      <div class="frame-corner corner-tr" aria-hidden="true"></div>
+      <div class="view-marker interface" aria-hidden="true"><span class="crosshair">＋</span><span class="micro">TRACKING CAM<span>RWY 27 · SIDE VIEW</span></span></div>
+
+      <div class="telemetry interface" aria-label="飞行遥测">
+        <div class="telemetry-item"><span class="telemetry-label">空速 <span>AIRSPEED</span></span><div><strong id="speed">0</strong><span class="unit">km/h</span></div></div>
+        <div class="telemetry-item"><span class="telemetry-label">高度 <span>ALTITUDE</span></span><div><strong id="altitude">0</strong><span class="unit">m</span></div></div>
+        <div class="telemetry-item"><span class="telemetry-label">航时 <span>FLIGHT TIME</span></span><div><strong id="elapsed">0.0</strong><span class="unit">s</span></div></div>
+      </div>
+      <div class="flight-chart interface" aria-hidden="true">
+        <span class="micro">FLIGHT VECTOR</span>
+        <svg viewBox="0 0 180 53" fill="none"><path d="M1 49H179M1 25H179M1 1H179M1 1V49M60 1V49M120 1V49M179 1V49" stroke="currentColor" opacity=".12"/><path d="M2 47h36c24 0 39-5 55-14l22-12 24-10 36-8" stroke="#F89B61" stroke-width="1.5"/><circle cx="175" cy="3" r="2.5" fill="#FF9A60"/></svg>
+      </div>
+      <div class="grain" aria-hidden="true"></div>
+
+      <div id="end-panel" class="end-panel hidden" role="dialog" aria-modal="true" aria-labelledby="end-title" aria-describedby="end-copy">
+        <div class="end-content">
+          <span class="eyebrow micro">FLIGHT REPORT / SIGNAL LOST</span>
+          <h2 id="end-title">冲破极限。</h2>
+          <div class="end-result"><span id="end-multiplier">1.00×</span></div>
+          <p id="end-copy">信号已中断，下一次飞行即将开始。</p>
+          <button id="replay-btn" class="primary-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.6 7.2M4 4v6h6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>再次起飞</span></button>
+        </div>
+      </div>
+      <div id="loading" class="loading"><span class="loading-symbol" aria-hidden="true"></span><span class="micro">INITIALIZING FLIGHT SYSTEMS</span><span>正在准备跑道…</span></div>
+    </section>
+
+    <footer class="control-dock">
+      <nav class="flight-progress interface" aria-label="飞行阶段">
+        <div class="progress-track"><div id="progress-fill"></div></div>
+        <div class="phase-step active" data-phase="idle"><span>01</span>准备就绪</div>
+        <div class="phase-step" data-phase="roll"><span>02</span>跑道加速</div>
+        <div class="phase-step" data-phase="rotate"><span>03</span>抬头离地</div>
+        <div class="phase-step" data-phase="climb"><span>04</span>冲向云霄</div>
+        <div class="phase-step" data-phase="crash"><span>05</span>极限时刻</div>
+      </nav>
+      <div class="controls-row">
+        <div class="flight-copy interface"><p>下一秒，冲破天际<span>。</span></p><span id="status-text">侧视追踪视角 · 等待起飞指令</span></div>
+        <div class="controls">
+          <button id="cinema-btn" class="text-btn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M3 8h18M3 16h18"/></svg><span>影院模式</span></button>
+          <button id="crash-btn" class="secondary-btn interface" type="button" disabled><span class="crash-cross" aria-hidden="true">×</span><span>触发 CRASH</span></button>
+          <button id="pause-btn" class="pause-btn interface" type="button" title="暂停动画" aria-label="暂停动画" aria-pressed="false" disabled><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx=".7"/><rect x="14" y="5" width="4" height="14" rx=".7"/></svg></button>
+          <button id="launch-btn" class="primary-btn interface" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 19 14-14M6 5h13v13" stroke-linecap="round" stroke-linejoin="round"/></svg><span>启动飞行</span><span class="keycap" aria-hidden="true">↵</span></button>
+        </div>
+      </div>
+      <div class="footer-note interface"><span>REALTIME 3D · 实时渲染</span><span>仅动画演示 <span class="note-dot">·</span> 无真实投注</span><span>AFTERBURN / 001</span></div>
+    </footer>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <noscript><div class="no-script">请在浏览器中启用 JavaScript，以运行战斗机起飞动画。</div></noscript>
+</body>
+</html>
